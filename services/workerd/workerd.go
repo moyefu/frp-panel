@@ -3,7 +3,9 @@ package workerd
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/VaalaCat/frp-panel/defs"
 	"github.com/VaalaCat/frp-panel/pb"
@@ -82,12 +84,26 @@ func (w *workerdController) GarbageCollect() {
 
 	pathToRemove := WorkerCWDPath(ctx, w.worker, w.workerdCwd)
 
-	if !strings.HasPrefix(pathToRemove, "/tmp") {
+	cleanPath := filepath.ToSlash(filepath.Clean(pathToRemove))
+	if !strings.HasPrefix(cleanPath, "/tmp") && !strings.HasPrefix(cleanPath, "C:/tmp") && !strings.Contains(cleanPath, "/tmp/") {
 		logger.Logger(ctx).Errorf("path not start with /tmp, do not remove path: [%s]", pathToRemove)
 		return
 	}
 
-	if err := os.RemoveAll(pathToRemove); err != nil {
+	var err error
+	for i := 0; i < 5; i++ {
+		if _, statErr := os.Stat(pathToRemove); os.IsNotExist(statErr) {
+			return
+		}
+		err = os.RemoveAll(pathToRemove)
+		if err == nil {
+			logger.Logger(ctx).Infof("garbage collect success, removed path: [%s]", pathToRemove)
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	if err != nil {
 		logger.Logger(ctx).WithError(err).Errorf("remove path failed, path: [%s]", pathToRemove)
 	}
 }

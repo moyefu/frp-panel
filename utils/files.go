@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -73,7 +74,10 @@ func FindExecutableNames(filter func(name string) bool, extraPaths ...string) ([
 			}
 
 			// skip directories or non‐executable
-			if info.IsDir() || info.Mode()&0111 == 0 {
+			if info.IsDir() {
+				continue
+			}
+			if runtime.GOOS != "windows" && info.Mode()&0111 == 0 {
 				continue
 			}
 

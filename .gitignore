@@ -3,6 +3,7 @@ __debug*
 .env
 tmp
 *.db*
+*.exe
 frp-panel
 out
 cmd/out

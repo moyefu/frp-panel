@@ -1,6 +1,10 @@
 package defs
 
 import (
+	"fmt"
+	"hash/fnv"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -122,6 +126,24 @@ const (
 	DefaultExternalPath   = "/"
 	DefaultEntry          = "entry.js"
 	DefaultSocketTemplate = "unix-abstract:/tmp/frpp-worker-%s.sock"
+)
+
+func GetWorkerPort(workerID string) int {
+	h := fnv.New32a()
+	h.Write([]byte(workerID))
+	return int(12000 + (h.Sum32() % 20000))
+}
+
+func WorkerSocketAddress(workerID string, originalAddress string) string {
+	if runtime.GOOS == "windows" {
+		if strings.HasPrefix(originalAddress, "unix-abstract:") || originalAddress == "" {
+			return fmt.Sprintf("127.0.0.1:%d", GetWorkerPort(workerID))
+		}
+	}
+	return originalAddress
+}
+
+const (
 	DefaultCode           = `export default {
   async fetch(req, env) {
     try {

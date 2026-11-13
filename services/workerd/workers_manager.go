@@ -2,6 +2,8 @@ package workerd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/VaalaCat/frp-panel/defs"
@@ -71,12 +73,32 @@ func (m *workersManager) GetWorkerStatus(ctx *app.Context, id string) (defs.Work
 
 func (m *workersManager) InstallWorkerd(ctx *app.Context, url string, installDir string) (string, error) {
 	arch := runtime.GOARCH
-	os := runtime.GOOS
+	goos := runtime.GOOS
+
+	if goos == "windows" {
+		candidates := []string{
+			`D:\Program Files\frpp\workerd.exe`,
+			`C:\Program Files\frpp\workerd.exe`,
+			`workerd.exe`,
+		}
+		if exePath, err := os.Executable(); err == nil {
+			candidates = append(candidates, filepath.Join(filepath.Dir(exePath), "workerd.exe"))
+		}
+		for _, cand := range candidates {
+			if _, err := os.Stat(cand); err == nil {
+				if execMgr := ctx.GetApp().GetWorkerExecManager(); execMgr != nil {
+					execMgr.UpdateBinaryPath(cand)
+				}
+				logger.Logger(ctx).Infof("workerd already installed on Windows, path: %s", cand)
+				return cand, nil
+			}
+		}
+	}
 
 	workerDownloadCfg := ctx.GetApp().GetConfig().Client.Worker.WorkerdDownloadURL
 
-	if os != "linux" {
-		return "", fmt.Errorf("unsupported os: %s", os)
+	if goos != "linux" {
+		return "", fmt.Errorf("unsupported os: %s", goos)
 	}
 	if arch != "amd64" && arch != "arm64" {
 		return "", fmt.Errorf("unsupported arch: %s", arch)

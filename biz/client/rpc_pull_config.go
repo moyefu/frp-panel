@@ -3,12 +3,15 @@ package client
 import (
 	"context"
 	"reflect"
+	"runtime"
 
+	"github.com/VaalaCat/frp-panel/defs"
 	"github.com/VaalaCat/frp-panel/pb"
 	"github.com/VaalaCat/frp-panel/services/app"
 	"github.com/VaalaCat/frp-panel/services/client"
 	"github.com/VaalaCat/frp-panel/utils"
 	"github.com/VaalaCat/frp-panel/utils/logger"
+	v1 "github.com/fatedier/frp/pkg/config/v1"
 	"github.com/samber/lo"
 )
 
@@ -70,6 +73,20 @@ func PullConfig(appInstance app.Application, clientID, clientSecret string) erro
 	if err != nil {
 		logger.Logger(context.Background()).WithError(err).Error("cannot load client config")
 		return err
+	}
+
+	if runtime.GOOS == "windows" {
+		for _, proxy := range p {
+			base := proxy.GetBaseConfig()
+			if base.Annotations != nil && base.Annotations[defs.FrpProxyAnnotationsKey_Ingress] == "true" {
+				workerId := base.Annotations[defs.FrpProxyAnnotationsKey_WorkerId]
+				if workerId != "" {
+					base.Plugin = v1.TypedClientPluginOptions{}
+					base.LocalIP = "127.0.0.1"
+					base.LocalPort = defs.GetWorkerPort(workerId)
+				}
+			}
+		}
 	}
 
 	serverID := resp.GetClient().GetServerId()

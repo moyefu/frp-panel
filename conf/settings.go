@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/VaalaCat/frp-panel/defs"
@@ -141,9 +143,16 @@ func (cfg *Config) Complete() {
 	}
 
 	if len(cfg.Client.Worker.WorkerdBinaryPath) == 0 {
+		paths := []string{cwd, "/"}
+		if exePath, err := os.Executable(); err == nil {
+			paths = append(paths, filepath.Dir(exePath))
+		}
+		if runtime.GOOS == "windows" {
+			paths = append(paths, `D:\Program Files\frpp`, `C:\Program Files\frpp`)
+		}
 		w, _ := utils.FindExecutableNames(func(name string) bool {
 			return strings.HasPrefix(name, "workerd")
-		}, cwd, "/")
+		}, paths...)
 		if len(w) > 0 {
 			cfg.Client.Worker.WorkerdBinaryPath = w[0]
 		}

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"html/template"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/VaalaCat/frp-panel/defs"
 	"github.com/VaalaCat/frp-panel/pb"
@@ -19,13 +21,18 @@ func BuildCapfile(workers []*pb.Worker) map[string]string {
 
 	results := map[string]string{}
 	for _, worker := range workers {
+		socketAddr := worker.GetSocket().GetAddress()
+		if runtime.GOOS == "windows" && (strings.HasPrefix(socketAddr, "unix-abstract:") || socketAddr == "") {
+			socketAddr = defs.WorkerSocketAddress(worker.GetWorkerId(), socketAddr)
+		}
+
 		tmpWorker := &pb.Worker{
 			WorkerId:  lo.ToPtr(SafeWorkerID(worker.GetWorkerId())),
 			UserId:    lo.ToPtr(worker.GetUserId()),
 			CodeEntry: lo.ToPtr(worker.GetCodeEntry()),
 			Socket: &pb.Socket{
 				Name:    lo.ToPtr(worker.GetWorkerId()),
-				Address: lo.ToPtr(worker.GetSocket().GetAddress()),
+				Address: lo.ToPtr(socketAddr),
 			},
 			ConfigTemplate: lo.ToPtr(worker.GetConfigTemplate()),
 		}
